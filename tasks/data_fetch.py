@@ -11,9 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 async def fetch_prices():
-    """
-    Fetches cryptocurrency prices from the CoinGecko API and stores them in MongoDB.
-    """
     try:
         url = "https://api.coingecko.com/api/v3/simple/price"
         params = {"ids": "bitcoin,ethereum,cardano", "vs_currencies": "usd"}
@@ -21,6 +18,7 @@ async def fetch_prices():
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
+                    # Ensure this is awaited properly
                     await save_prices_to_db(data)
                 else:
                     logger.error(

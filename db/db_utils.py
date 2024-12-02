@@ -2,12 +2,13 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncI
 import certifi
 import os
 from dotenv import load_dotenv
+import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
 
 
-def get_database() -> AsyncIOMotorDatabase:
+async def get_database() -> AsyncIOMotorDatabase:
     """
     Returns an AsyncIOMotorDatabase to interact with the MongoDB database.
     """
@@ -28,9 +29,9 @@ def get_database() -> AsyncIOMotorDatabase:
     return db
 
 
-def get_collection(collection_name: str) -> AsyncIOMotorCollection:
+async def get_collection(collection_name: str) -> AsyncIOMotorCollection:
     """
     Returns a specific collection from the MongoDB database.
     """
-    db = get_database()  # Get the database
+    db = await get_database()  # Await the database connection
     return db[collection_name]  # Access the specified collection
