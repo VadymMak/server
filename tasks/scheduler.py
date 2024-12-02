@@ -1,5 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from tasks.data_fetch import fetch_prices, fetch_and_store_social_data
+from tasks.data_fetch import fetch_prices, fetch_and_store_social_data, fetch_investors, filter_currencies_based_on_params
 import logging
 import time
 
@@ -14,6 +14,11 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(fetch_prices, 'interval', minutes=10, id='fetch_prices')
 scheduler.add_job(fetch_and_store_social_data, 'interval',
                   hours=1, id='fetch_social_data')
+
+# New tasks added for fetching investors and filtering currencies
+scheduler.add_job(fetch_investors, 'interval', hours=1, id='fetch_investors')
+scheduler.add_job(filter_currencies_based_on_params,
+                  'interval', hours=1, id='filter_currencies')
 
 
 def start_scheduler():

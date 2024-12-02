@@ -18,7 +18,6 @@ async def fetch_prices():
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
-                    # Ensure this is awaited properly
                     await save_prices_to_db(data)
                 else:
                     logger.error(
@@ -33,7 +32,7 @@ async def save_prices_to_db(data):
     Save cryptocurrency prices to the MongoDB database.
     """
     try:
-        collection = get_collection("prices")  # No need to await here anymore
+        collection = get_collection("prices")
         result = await collection.insert_one({
             "data": data,
             "timestamp": datetime.utcnow()
@@ -57,7 +56,6 @@ async def fetch_and_store_social_data():
                     logger.info("Reddit response fetched successfully.")
                     children = data.get("data", {}).get("children", [])
                     if isinstance(children, list):
-                        # No need to await here anymore
                         collection = get_collection("social_trends")
                         for item in children:
                             if "data" in item:
@@ -81,3 +79,93 @@ async def fetch_and_store_social_data():
                         f"Failed to fetch social data. Status: {response.status}")
     except Exception as e:
         logger.error(f"Error fetching or storing social data: {e}")
+
+
+# Function to fetch investor data from an API and store it in MongoDB
+async def fetch_investors():
+    """
+    Fetchs data about cryptocurrency investors or institutional backers.
+    """
+    try:
+        # Placeholder API for fetching investor data
+        url = "https://api.some-crypto-investor-api.com/investors"
+        # You can modify this to include other cryptos or params
+        params = {"crypto": "bitcoin,ethereum,cardano"}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    await store_investor_data(data)
+                else:
+                    logger.error(
+                        f"Failed to fetch investor data. Status: {response.status}")
+    except Exception as e:
+        logger.error(f"Error in fetch_investors: {e}")
+
+
+# Function to store investor data in MongoDB
+async def store_investor_data(data):
+    """
+    Save investor data to MongoDB.
+    """
+    try:
+        collection = get_collection("investors")
+        for investor in data.get('investors', []):
+            await collection.update_one(
+                {"name": investor["name"]},  # Assuming 'name' is unique
+                {"$set": investor},
+                upsert=True
+            )
+        logger.info("Investor data stored successfully.")
+    except Exception as e:
+        logger.error(f"Failed to store investor data: {e}")
+
+
+# Function to filter cryptocurrencies based on price, market cap, and volume
+async def filter_currencies_based_on_params():
+    """
+    Filters cryptocurrencies based on parameters like price range, market cap, and volume.
+    """
+    try:
+        # Example filtering parameters (can be modified or taken from a config)
+        min_price = 0.1
+        max_price = 10
+        min_market_cap = 100_000_000  # USD
+        min_volume = 50_000  # USD
+
+        url = "https://api.coingecko.com/api/v3/coins/markets"
+        params = {"vs_currency": "usd", "price_change_percentage": "24h"}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    filtered_coins = [
+                        coin for coin in data if min_price <= coin["current_price"] <= max_price and
+                        coin["market_cap"] >= min_market_cap and coin["total_volume"] >= min_volume
+                    ]
+                    await store_filtered_currencies(filtered_coins)
+                else:
+                    logger.error(
+                        f"Failed to fetch currencies. Status: {response.status}")
+    except Exception as e:
+        logger.error(f"Error in filter_currencies_based_on_params: {e}")
+
+
+# Function to store filtered cryptocurrencies in MongoDB
+async def store_filtered_currencies(currencies):
+    """
+    Save filtered currencies to MongoDB.
+    """
+    try:
+        collection = get_collection("filtered_currencies")
+        for currency in currencies:
+            await collection.update_one(
+                {"id": currency["id"]},
+                {"$set": currency},
+                upsert=True
+            )
+        logger.info("Filtered currencies stored successfully.")
+    except Exception as e:
+        logger.error(f"Failed to store filtered currencies: {e}")
