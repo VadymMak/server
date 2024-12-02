@@ -1,19 +1,19 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from tasks.data_fetch import fetch_prices, fetch_and_store_social_data
-import asyncio
 import logging
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize the scheduler
 scheduler = BackgroundScheduler()
 
 # Schedule your data fetching tasks
-scheduler.add_job(lambda: asyncio.run(fetch_prices()),
-                  'interval', minutes=10, id='fetch_prices')
-scheduler.add_job(lambda: asyncio.run(fetch_and_store_social_data()),
-                  'interval', hours=1, id='fetch_social_data')
+scheduler.add_job(fetch_prices, 'interval', minutes=10, id='fetch_prices')
+scheduler.add_job(fetch_and_store_social_data, 'interval',
+                  hours=1, id='fetch_social_data')
 
 
 def start_scheduler():
@@ -46,6 +46,6 @@ if __name__ == "__main__":
         start_scheduler()
         while True:
             # Keep the script running to maintain the scheduler
-            asyncio.sleep(1)
+            time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         stop_scheduler()
