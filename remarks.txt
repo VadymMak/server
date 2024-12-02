@@ -1,0 +1,4 @@
+import certifi
+
+# Connect to MongoDB using the URI
+client = MongoClient(mongo_uri, tls=True, tlsCAFile=certifi.where())
