@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+# Import the start_scheduler function
+from tasks.scheduler import start_scheduler
 from db.database import get_database
 from routes.prices import router as prices_router  # Import the prices router
 from routes.social import router as social_router  # Import the social router
@@ -13,6 +15,9 @@ app.include_router(social_router, prefix="/api",
                    tags=["Social"])  # Updated prefix here
 app.include_router(investors_router, prefix="/api", tags=["Investors"])
 
+# Start the scheduler to run background tasks
+start_scheduler()
+
 
 @app.get("/")
 async def read_root():
@@ -26,7 +31,6 @@ async def read_root():
         return {"message": "Connected to MongoDB successfully!"}
     except Exception as e:
         return {"error": f"Failed to connect to MongoDB: {str(e)}"}
-
 
 if __name__ == "__main__":
     import uvicorn

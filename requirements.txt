@@ -3,6 +3,6 @@ pymongo==3.13.0
 fastapi
 uvicorn
 pydantic==2.10.2
-motor==2.5.1
+motor==2.5.0
 certifi
 aiohttp==3.11.8

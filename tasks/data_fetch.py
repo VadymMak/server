@@ -53,7 +53,6 @@ async def fetch_and_store_social_data():
                 if response.status == 200:
                     data = await response.json()
                     logger.info("Reddit response fetched successfully.")
-
                     children = data.get("data", {}).get("children", [])
                     if isinstance(children, list):
                         collection = await get_collection("social_trends")
@@ -61,15 +60,10 @@ async def fetch_and_store_social_data():
                             if "data" in item:
                                 item_data = item["data"]
                                 item_data["fetched_at"] = datetime.utcnow()
-
-                                # Decode HTML entities if present
                                 if "selftext_html" in item_data:
                                     item_data["selftext_html"] = html.unescape(
                                         item_data["selftext_html"])
-
-                                # Update or insert the data
                                 await collection.update_one(
-                                    # Use a unique field like 'id' for upsert
                                     {"id": item_data.get("id")},
                                     {"$set": item_data},
                                     upsert=True
