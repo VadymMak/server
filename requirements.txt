@@ -6,3 +6,4 @@ pydantic==2.10.2
 motor==2.5.0
 certifi
 aiohttp==3.11.8
+apscheduler>=3.8.0
