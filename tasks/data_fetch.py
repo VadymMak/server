@@ -7,6 +7,8 @@ import html
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Function to fetch cryptocurrency prices
+
 
 async def fetch_prices():
     """
@@ -27,21 +29,23 @@ async def fetch_prices():
         logger.error(f"Error in fetch_prices: {e}")
 
 
+# Function to save cryptocurrency prices to the database
 async def save_prices_to_db(data):
     """
     Save cryptocurrency prices to the MongoDB database.
     """
     try:
-        collection = await get_collection("prices")
-        await collection.insert_one({
+        collection = get_collection("prices")  # No need to await here anymore
+        result = await collection.insert_one({
             "data": data,
             "timestamp": datetime.utcnow()
         })
-        logger.info("Prices saved successfully.")
+        logger.info(f"Prices saved successfully with id: {result.inserted_id}")
     except Exception as e:
         logger.error(f"Failed to save prices to DB: {e}")
 
 
+# Function to fetch social trends data from Reddit and store it in MongoDB
 async def fetch_and_store_social_data():
     """
     Fetch social trends data from Reddit and store it in MongoDB.
@@ -55,7 +59,8 @@ async def fetch_and_store_social_data():
                     logger.info("Reddit response fetched successfully.")
                     children = data.get("data", {}).get("children", [])
                     if isinstance(children, list):
-                        collection = await get_collection("social_trends")
+                        # No need to await here anymore
+                        collection = get_collection("social_trends")
                         for item in children:
                             if "data" in item:
                                 item_data = item["data"]
@@ -68,8 +73,8 @@ async def fetch_and_store_social_data():
                                     {"$set": item_data},
                                     upsert=True
                                 )
-                        logger.info(
-                            "Social data processed and stored successfully.")
+                            logger.info(
+                                "Social data processed and stored successfully.")
                     else:
                         logger.warning(
                             "No valid 'children' data found in the response.")
