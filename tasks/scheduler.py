@@ -25,7 +25,13 @@ scheduler = BackgroundScheduler()
 
 
 def run_async(func, *args, **kwargs):
-    asyncio.create_task(func(*args, **kwargs))
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        # If there's already a running event loop, use create_task
+        asyncio.create_task(func(*args, **kwargs))
+    else:
+        # Otherwise, run the async function in a new event loop
+        asyncio.run(func(*args, **kwargs))
 
 
 # Schedule your data fetching tasks
@@ -44,6 +50,12 @@ scheduler.add_job(run_async, 'interval', hours=1, id='filter_currencies', args=[
 # Don't pass 'data' here. Let the function fetch the data dynamically when needed.
 scheduler.add_job(run_async, 'interval', hours=1,
                   id='save_prices_to_db', args=[save_prices_to_db])
+
+# Schedule tasks for storing investors and filtered currencies
+scheduler.add_job(run_async, 'interval', hours=1,
+                  id='store_investor_data', args=[store_investor_data])
+scheduler.add_job(run_async, 'interval', hours=1,
+                  id='store_filtered_currencies', args=[store_filtered_currencies])
 
 # Function to start the scheduler
 
