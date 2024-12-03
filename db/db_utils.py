@@ -17,6 +17,8 @@ async def get_database() -> AsyncIOMotorDatabase:
     if not mongo_uri:
         raise ValueError("MongoDB URI is not set in the environment variables")
 
+    print(f"Connecting to MongoDB at {mongo_uri}")
+
     # Initialize the MongoDB client with tlsCAFile pointing to the certifi CA file
     client = AsyncIOMotorClient(
         mongo_uri,
@@ -34,4 +36,7 @@ async def get_collection(collection_name: str) -> AsyncIOMotorCollection:
     Returns a specific collection from the MongoDB database.
     """
     db = await get_database()  # Await the database connection
+    collection = db.get(collection_name)
+    if collection is None:
+        print(f"Collection '{collection_name}' does not exist.")
     return db[collection_name]  # Access the specified collection

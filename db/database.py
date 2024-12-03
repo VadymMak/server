@@ -19,14 +19,14 @@ async def get_database():
     if not mongo_uri:
         raise ValueError("MongoDB URI is not set in the environment variables")
 
-    # Initialize the MongoDB client with tlsCAFile pointing to the certifi CA file
+    # Initialize the MongoDB client with TLS/SSL
     client = AsyncIOMotorClient(
         mongo_uri,
         tls=True,  # Enable TLS/SSL
         tlsCAFile=certifi.where()  # Use certifi's CA certificates
     )
 
-    # Replace with the actual database name you are using
+    # Specify the actual database name
     db = client["auth_roles"]  # Replace with your actual database name
     return db
 
