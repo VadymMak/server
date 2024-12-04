@@ -1,41 +1,43 @@
 from fastapi import FastAPI
-from fastapi.lifespan import Lifespan
 from tasks.scheduler import init_scheduler, stop_scheduler
 from db.database import get_database
 from routes.prices import router as prices_router
 from routes.social import router as social_router
 from routes.investors import router as investors_router
+from fastapi import Lifespan
 
-
-def lifespan(app: FastAPI):
-    """
-    Lifespan context manager for handling startup and shutdown events.
-    """
-    async def start():
-        # Initialize the scheduler
-        init_scheduler()
-        try:
-            # Connect to the database
-            db = await get_database()
-            await db.command("ping")  # Test the database connection
-            app.state.db_connected = True
-        except Exception as e:
-            app.state.db_connected = False
-            print(f"Error connecting to MongoDB: {e}")
-
-    async def stop():
-        # Stop the scheduler
-        stop_scheduler()
-
-    return start, stop
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=Lifespan)
 
 # Include routers with specific prefixes and tags
 app.include_router(prices_router, prefix="/api", tags=["Prices"])
 app.include_router(social_router, prefix="/api", tags=["Social"])
 app.include_router(investors_router, prefix="/api", tags=["Investors"])
+
+# Start and stop the scheduler using lifespan
+
+
+@app.on_event("startup")
+async def on_startup():
+    """
+    Event triggered when the application starts.
+    """
+    await init_scheduler()
+    try:
+        db = await get_database()
+        # Ping the database to ensure connection is successful
+        await db.command("ping")
+        app.state.db_connected = True
+    except Exception as e:
+        app.state.db_connected = False
+        print(f"Error connecting to MongoDB: {e}")
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """
+    Event triggered when the application shuts down.
+    """
+    stop_scheduler()
 
 
 @app.get("/")
@@ -47,7 +49,6 @@ async def read_root():
         return {"message": "Connected to MongoDB successfully!"}
     else:
         return {"error": "Failed to connect to MongoDB"}
-
 
 if __name__ == "__main__":
     import uvicorn
