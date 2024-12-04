@@ -20,16 +20,29 @@ logger = logging.getLogger(__name__)
 # Initialize the scheduler
 scheduler = AsyncIOScheduler()
 
-# Define wrapper tasks for functions requiring arguments
+# Define async wrapper tasks to handle data dynamically
+
+
+async def save_prices_to_db_task():
+    """
+    Fetches prices and saves them to the database.
+    """
+    data = await fetch_prices()
+    await save_prices_to_db(data)
 
 
 async def store_investor_data_task():
-    data = await fetch_investors()  # Fetch required data dynamically
+    """
+    Fetches investor data and stores it in the database.
+    """
+    data = await fetch_investors()
     await store_investor_data(data)
 
 
 async def store_filtered_currencies_task():
-    # Fetch required data dynamically
+    """
+    Filters currencies based on parameters and stores the results in the database.
+    """
     filtered_data = await filter_currencies_based_on_params()
     await store_filtered_currencies(filtered_data)
 
@@ -40,12 +53,12 @@ scheduler.add_job(fetch_and_store_social_data, 'interval',
 scheduler.add_job(fetch_investors, 'interval', hours=1, id='fetch_investors')
 scheduler.add_job(filter_currencies_based_on_params,
                   'interval', hours=1, id='filter_currencies')
+scheduler.add_job(save_prices_to_db_task, 'interval',
+                  hours=1, id='save_prices_to_db')
 scheduler.add_job(store_investor_data_task, 'interval',
                   hours=1, id='store_investor_data')
 scheduler.add_job(store_filtered_currencies_task, 'interval',
                   hours=1, id='store_filtered_currencies')
-scheduler.add_job(save_prices_to_db, 'interval',
-                  hours=1, id='save_prices_to_db')
 
 # Start the scheduler
 
