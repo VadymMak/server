@@ -2,7 +2,6 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncI
 import certifi
 import os
 from dotenv import load_dotenv
-import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,7 +35,6 @@ async def get_collection(collection_name: str) -> AsyncIOMotorCollection:
     Returns a specific collection from the MongoDB database.
     """
     db = await get_database()  # Await the database connection
-    collection = db.get(collection_name)
-    if collection is None:
-        print(f"Collection '{collection_name}' does not exist.")
-    return db[collection_name]  # Access the specified collection
+    # Directly access the collection from the database
+    collection = db[collection_name]
+    return collection
