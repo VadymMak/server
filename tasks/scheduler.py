@@ -1,7 +1,6 @@
 import asyncio
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
-import time
 
 # Import all functions from data_fetch.py
 from tasks.data_fetch import (
@@ -19,45 +18,37 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize the scheduler
-scheduler = BackgroundScheduler()
+scheduler = AsyncIOScheduler()
 
-# Function to wrap async functions in a way that APScheduler can schedule them
-
-
-def run_async(func, *args, **kwargs):
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        # If there's already a running event loop, use create_task
-        asyncio.create_task(func(*args, **kwargs))
-    else:
-        # Otherwise, run the async function in a new event loop
-        asyncio.run(func(*args, **kwargs))
+# Define wrappers for tasks that require additional arguments
 
 
-# Schedule your data fetching tasks
-scheduler.add_job(run_async, 'interval', minutes=10,
-                  id='fetch_prices', args=[fetch_prices])
-scheduler.add_job(run_async, 'interval', hours=1,
-                  id='fetch_social_data', args=[fetch_and_store_social_data])
+async def store_investor_data_task():
+    # Fetch necessary data dynamically
+    data = await fetch_investors()  # Adjust as per actual implementation
+    await store_investor_data(data)
 
-# New tasks added for fetching investors and filtering currencies
-scheduler.add_job(run_async, 'interval', hours=1,
-                  id='fetch_investors', args=[fetch_investors])
-scheduler.add_job(run_async, 'interval', hours=1, id='filter_currencies', args=[
-                  filter_currencies_based_on_params])
 
-# For saving prices to DB every hour
-# Don't pass 'data' here. Let the function fetch the data dynamically when needed.
-scheduler.add_job(run_async, 'interval', hours=1,
-                  id='save_prices_to_db', args=[save_prices_to_db])
+async def store_filtered_currencies_task():
+    # Fetch necessary data dynamically
+    filtered_data = await filter_currencies_based_on_params()  # Adjust as needed
+    await store_filtered_currencies(filtered_data)
 
-# Schedule tasks for storing investors and filtered currencies
-scheduler.add_job(run_async, 'interval', hours=1,
-                  id='store_investor_data', args=[store_investor_data])
-scheduler.add_job(run_async, 'interval', hours=1,
-                  id='store_filtered_currencies', args=[store_filtered_currencies])
+# Schedule tasks
+scheduler.add_job(fetch_prices, 'interval', minutes=10, id='fetch_prices')
+scheduler.add_job(fetch_and_store_social_data, 'interval',
+                  hours=1, id='fetch_social_data')
+scheduler.add_job(fetch_investors, 'interval', hours=1, id='fetch_investors')
+scheduler.add_job(filter_currencies_based_on_params,
+                  'interval', hours=1, id='filter_currencies')
 
-# Function to start the scheduler
+# Use wrapper functions to ensure proper arguments
+scheduler.add_job(store_investor_data_task, 'interval',
+                  hours=1, id='store_investor_data')
+scheduler.add_job(store_filtered_currencies_task, 'interval',
+                  hours=1, id='store_filtered_currencies')
+
+# Define start and stop functions
 
 
 def start_scheduler():
@@ -70,8 +61,6 @@ def start_scheduler():
             "Scheduler started. Fetching tasks are now running in the background.")
     except Exception as e:
         logger.error(f"Error starting scheduler: {e}")
-
-# Function to stop the scheduler gracefully
 
 
 def stop_scheduler():
@@ -86,12 +75,10 @@ def stop_scheduler():
         logger.error(f"Error stopping scheduler: {e}")
 
 
-# For testing locally, use this block
+# For testing locally
 if __name__ == "__main__":
     try:
         start_scheduler()
-        while True:
-            # Keep the script running to maintain the scheduler
-            time.sleep(1)
+        asyncio.get_event_loop().run_forever()
     except (KeyboardInterrupt, SystemExit):
         stop_scheduler()
