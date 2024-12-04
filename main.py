@@ -18,7 +18,7 @@ async def on_startup():
     """
     Event triggered when the application starts.
     """
-    await init_scheduler()
+    init_scheduler()  # Call without await since it's not an async function
     try:
         db = await get_database()
         # Ping the database to ensure connection is successful
