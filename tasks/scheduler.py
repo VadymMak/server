@@ -10,7 +10,7 @@ from tasks.data_fetch import (
     filter_currencies_based_on_params,
     save_prices_to_db,
     store_investor_data,
-    store_filtered_currencies
+    store_filtered_currencies,
 )
 
 # Configure logging
@@ -20,18 +20,17 @@ logger = logging.getLogger(__name__)
 # Initialize the scheduler
 scheduler = AsyncIOScheduler()
 
-# Define wrappers for tasks that require additional arguments
+# Define wrapper tasks for functions requiring arguments
 
 
 async def store_investor_data_task():
-    # Fetch necessary data dynamically
-    data = await fetch_investors()  # Adjust as per actual implementation
+    data = await fetch_investors()  # Fetch required data dynamically
     await store_investor_data(data)
 
 
 async def store_filtered_currencies_task():
-    # Fetch necessary data dynamically
-    filtered_data = await filter_currencies_based_on_params()  # Adjust as needed
+    # Fetch required data dynamically
+    filtered_data = await filter_currencies_based_on_params()
     await store_filtered_currencies(filtered_data)
 
 # Schedule tasks
@@ -41,14 +40,14 @@ scheduler.add_job(fetch_and_store_social_data, 'interval',
 scheduler.add_job(fetch_investors, 'interval', hours=1, id='fetch_investors')
 scheduler.add_job(filter_currencies_based_on_params,
                   'interval', hours=1, id='filter_currencies')
-
-# Use wrapper functions to ensure proper arguments
 scheduler.add_job(store_investor_data_task, 'interval',
                   hours=1, id='store_investor_data')
 scheduler.add_job(store_filtered_currencies_task, 'interval',
                   hours=1, id='store_filtered_currencies')
+scheduler.add_job(save_prices_to_db, 'interval',
+                  hours=1, id='save_prices_to_db')
 
-# Define start and stop functions
+# Start the scheduler
 
 
 def start_scheduler():
@@ -61,6 +60,8 @@ def start_scheduler():
             "Scheduler started. Fetching tasks are now running in the background.")
     except Exception as e:
         logger.error(f"Error starting scheduler: {e}")
+
+# Stop the scheduler
 
 
 def stop_scheduler():
