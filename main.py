@@ -1,22 +1,41 @@
 from fastapi import FastAPI
-# Import the start_scheduler function
-from tasks.scheduler import start_scheduler
+from fastapi.lifespan import Lifespan
+from tasks.scheduler import init_scheduler, stop_scheduler
 from db.database import get_database
-from routes.prices import router as prices_router  # Import the prices router
-from routes.social import router as social_router  # Import the social router
-# Import the investors router
+from routes.prices import router as prices_router
+from routes.social import router as social_router
 from routes.investors import router as investors_router
 
-app = FastAPI()
 
-# Include routers with specific prefixes
-app.include_router(prices_router, prefix="/api")
-app.include_router(social_router, prefix="/api",
-                   tags=["Social"])  # Updated prefix here
+def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for handling startup and shutdown events.
+    """
+    async def start():
+        # Initialize the scheduler
+        init_scheduler()
+        try:
+            # Connect to the database
+            db = await get_database()
+            await db.command("ping")  # Test the database connection
+            app.state.db_connected = True
+        except Exception as e:
+            app.state.db_connected = False
+            print(f"Error connecting to MongoDB: {e}")
+
+    async def stop():
+        # Stop the scheduler
+        stop_scheduler()
+
+    return start, stop
+
+
+app = FastAPI(lifespan=lifespan)
+
+# Include routers with specific prefixes and tags
+app.include_router(prices_router, prefix="/api", tags=["Prices"])
+app.include_router(social_router, prefix="/api", tags=["Social"])
 app.include_router(investors_router, prefix="/api", tags=["Investors"])
-
-# Start the scheduler to run background tasks
-start_scheduler()
 
 
 @app.get("/")
@@ -24,13 +43,11 @@ async def read_root():
     """
     Root endpoint to test MongoDB connection.
     """
-    try:
-        db = await get_database()  # Use await to handle the async function
-        # Optionally, check if the database connection works
-        await db.command("ping")  # Send a ping command to verify connection
+    if app.state.db_connected:
         return {"message": "Connected to MongoDB successfully!"}
-    except Exception as e:
-        return {"error": f"Failed to connect to MongoDB: {str(e)}"}
+    else:
+        return {"error": "Failed to connect to MongoDB"}
+
 
 if __name__ == "__main__":
     import uvicorn
