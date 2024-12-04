@@ -4,16 +4,13 @@ from db.database import get_database
 from routes.prices import router as prices_router
 from routes.social import router as social_router
 from routes.investors import router as investors_router
-from fastapi import Lifespan
 
-app = FastAPI(lifespan=Lifespan)
+app = FastAPI()
 
 # Include routers with specific prefixes and tags
 app.include_router(prices_router, prefix="/api", tags=["Prices"])
 app.include_router(social_router, prefix="/api", tags=["Social"])
 app.include_router(investors_router, prefix="/api", tags=["Investors"])
-
-# Start and stop the scheduler using lifespan
 
 
 @app.on_event("startup")
