@@ -1,5 +1,5 @@
 import aiohttp
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import html
 from db.db_utils import get_collection
@@ -48,7 +48,8 @@ async def save_prices_to_db(data: Any) -> None:
         # Insert data into the collection
         result = await collection.insert_one({
             "data": data,
-            "timestamp": datetime.utcnow()
+            # Updated to timezone-aware datetime
+            "timestamp": datetime.now(timezone.utc)
         })
 
         # Log the success
@@ -76,7 +77,9 @@ async def fetch_and_store_social_data():
                         for item in children:
                             if "data" in item:
                                 item_data = item["data"]
-                                item_data["fetched_at"] = datetime.utcnow()
+                                # Updated to timezone-aware datetime
+                                item_data["fetched_at"] = datetime.now(
+                                    timezone.utc)
                                 if "selftext_html" in item_data:
                                     item_data["selftext_html"] = html.unescape(
                                         item_data["selftext_html"])
