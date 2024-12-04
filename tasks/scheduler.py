@@ -1,7 +1,6 @@
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
-import time
 
 # Import all functions from data_fetch.py
 from tasks.data_fetch import (
@@ -21,14 +20,22 @@ logger = logging.getLogger(__name__)
 # Initialize the scheduler with AsyncIOScheduler for asyncio compatibility
 scheduler = AsyncIOScheduler()
 
-# Schedule your data fetching tasks
+# Define a wrapper for `save_prices_to_db` to supply the `data` parameter
+
+
+async def save_prices_task():
+    data = await fetch_prices()  # Fetch prices first
+    await save_prices_to_db(data)  # Pass the data to save_prices_to_db
+
+# Schedule tasks
 scheduler.add_job(fetch_prices, 'interval', minutes=10, id='fetch_prices')
 scheduler.add_job(fetch_and_store_social_data, 'interval',
                   hours=1, id='fetch_social_data')
 scheduler.add_job(fetch_investors, 'interval', hours=1, id='fetch_investors')
 scheduler.add_job(filter_currencies_based_on_params,
                   'interval', hours=1, id='filter_currencies')
-scheduler.add_job(save_prices_to_db, 'interval',
+# Use wrapper for `save_prices_to_db`
+scheduler.add_job(save_prices_task, 'interval',
                   hours=1, id='save_prices_to_db')
 scheduler.add_job(store_investor_data, 'interval',
                   hours=1, id='store_investor_data')
