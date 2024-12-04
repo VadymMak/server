@@ -44,6 +44,8 @@ def configure_scheduler():
     """
     Configures all scheduled jobs.
     """
+    logger.debug("Configuring scheduler jobs...")
+
     scheduler.add_job(fetch_prices, 'interval', minutes=10, id='fetch_prices')
     scheduler.add_job(fetch_and_store_social_data, 'interval',
                       hours=1, id='fetch_social_data')
@@ -57,6 +59,8 @@ def configure_scheduler():
                       hours=1, id='store_investor_data')
     scheduler.add_job(store_filtered_currencies_task, 'interval',
                       hours=1, id='store_filtered_currencies')
+
+    logger.debug("Scheduler jobs configured successfully.")
 
 
 async def start_scheduler():
@@ -81,7 +85,7 @@ def stop_scheduler():
     except Exception as e:
         logger.error(f"Error stopping scheduler: {e}")
 
-# Ensure that the scheduler runs asynchronously for FastAPI
+# Ensure that the scheduler runs asynchronously for FastAPI or standalone execution
 
 
 def init_scheduler():
@@ -92,4 +96,5 @@ def init_scheduler():
 
 
 if __name__ == "__main__":
+    # Start the scheduler in a standalone way
     asyncio.run(start_scheduler())
