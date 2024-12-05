@@ -50,47 +50,75 @@ async def save_prices_to_db(data: Any) -> None:
 
 
 async def fetch_and_store_social_data():
+    """
+    Fetch social trends data from Reddit and store it in MongoDB.
+    """
     try:
         url = "https://api.reddit.com/r/cryptocurrency/top"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
-                    logger.info(f"Fetched Reddit data: {data}")
+                    logger.info(f"Reddit response fetched: {data}")
+
+                    # Extract posts data
                     children = data.get("data", {}).get("children", [])
-                    if isinstance(children, list):
-                        collection = await get_collection("social_trends")
-                        for item in children:
-                            item_data = item.get("data", {})
-                            if item_data:
-                                item_data["fetched_at"] = datetime.now(
-                                    timezone.utc)
-                                if "selftext_html" in item_data:
-                                    item_data["selftext_html"] = html.unescape(
-                                        item_data["selftext_html"])
-                                await collection.update_one(
-                                    {"id": item_data.get("id")},
-                                    {"$set": item_data},
-                                    upsert=True
-                                )
-                        logger.info(
-                            "Social data processed and stored successfully.")
-                    else:
+
+                    if not isinstance(children, list):
                         logger.warning(
-                            "No valid 'children' data found in the response.")
+                            "Invalid 'children' format in response.")
+                        return
+
+                    collection = await get_collection("social_trends")
+
+                    for item in children:
+                        post_data = item.get("data", {})
+
+                        # Ensure required fields are present
+                        if "id" not in post_data:
+                            logger.warning(f"Post missing 'id': {post_data}")
+                            continue
+
+                        # Normalize and clean data
+                        social_entry = {
+                            "id": post_data["id"],
+                            "title": post_data.get("title", "Untitled"),
+                            "author": post_data.get("author", "Unknown"),
+                            "upvotes": post_data.get("ups", 0),
+                            "num_comments": post_data.get("num_comments", 0),
+                            "selftext_html": html.unescape(post_data.get("selftext_html", "")),
+                            "url": post_data.get("url", ""),
+                            # Add timestamp
+                            "fetched_at": datetime.now(timezone.utc),
+                        }
+
+                        # Insert or update in MongoDB
+                        await collection.update_one(
+                            {"id": social_entry["id"]},  # Unique identifier
+                            {"$set": social_entry},
+                            upsert=True
+                        )
+
+                    logger.info("Social trends data stored successfully.")
                 else:
                     logger.error(
                         f"Failed to fetch social data. Status: {response.status}")
     except Exception as e:
-        logger.exception("Error fetching or storing social data")
+        logger.error(f"Error fetching or storing social data: {e}")
+
 
 # Fetch and store investor data
 
 
 async def fetch_investors():
+    """
+    Fetch data about cryptocurrency investors or institutional backers.
+    """
     try:
+        # Placeholder API URL
         url = "https://api.some-crypto-investor-api.com/investors"
         params = {"crypto": "bitcoin,ethereum,cardano"}
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
@@ -101,27 +129,47 @@ async def fetch_investors():
                     logger.error(
                         f"Failed to fetch investor data. Status: {response.status}")
     except Exception as e:
-        logger.exception("Error in fetch_investors")
-
-# Store investor data in MongoDB
+        logger.error(f"Error in fetch_investors: {e}")
 
 
-async def store_investor_data(data: dict):
+async def store_investor_data(data):
+    """
+    Save investor data to MongoDB.
+    """
     try:
-        if not data:
-            logger.error("No investor data provided.")
+        investors = data.get("investors", [])
+
+        if not isinstance(investors, list):
+            logger.warning("Investors data is not a list.")
             return
 
         collection = await get_collection("investors")
-        for investor in data.get('investors', []):
+
+        for investor in investors:
+            # Ensure required fields are present
+            if "name" not in investor:
+                logger.warning(f"Missing 'name' field in investor: {investor}")
+                continue
+
+            # Normalize and clean data
+            investor_entry = {
+                "name": investor["name"],
+                "cryptos_supported": investor.get("cryptos_supported", []),
+                "amount_invested": investor.get("amount_invested", "unknown"),
+                "fetched_at": datetime.now(timezone.utc),  # Add timestamp
+            }
+
+            # Upsert operation
             await collection.update_one(
-                {"name": investor["name"]},
-                {"$set": investor},
+                {"name": investor_entry["name"]},  # Unique identifier
+                {"$set": investor_entry},
                 upsert=True
             )
+
         logger.info("Investor data stored successfully.")
     except Exception as e:
-        logger.exception("Failed to store investor data")
+        logger.error(f"Failed to store investor data: {e}")
+
 
 # Filter cryptocurrencies based on parameters
 

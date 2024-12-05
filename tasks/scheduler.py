@@ -48,15 +48,15 @@ def configure_scheduler():
 
     scheduler.add_job(fetch_prices, 'interval', minutes=10, id='fetch_prices')
     scheduler.add_job(fetch_and_store_social_data, 'interval',
-                      hours=1, id='fetch_social_data')
+                      minutes=10, id='fetch_social_data')
     scheduler.add_job(fetch_investors, 'interval',
-                      hours=1, id='fetch_investors')
+                      minutes=10, id='fetch_investors')
     scheduler.add_job(filter_currencies_based_on_params,
                       'interval', hours=1, id='filter_currencies')
     scheduler.add_job(save_prices_to_db_task, 'interval',
                       hours=1, id='save_prices_to_db')
     scheduler.add_job(store_investor_data_task, 'interval',
-                      hours=1, id='store_investor_data')
+                      minutes=10, id='store_investor_data')
     scheduler.add_job(store_filtered_currencies_task, 'interval',
                       hours=1, id='store_filtered_currencies')
 
