@@ -21,17 +21,44 @@ REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT')
 # Fetch cryptocurrency prices
 
 
-async def get_collection(collection_name):
-    # Replace this with your actual MongoDB collection access code
-    # This function should return the MongoDB collection object.
-    # For example, using motor with MongoDB:
-    from motor.motor_asyncio import AsyncIOMotorClient
-    client = AsyncIOMotorClient(
-        "mongodb+srv://<username>:<password>@cluster0.lswax.mongodb.net/")
-    db = client.get_database('auth_roles')  # Your MongoDB database name
-    return db.get_collection(collection_name)
+async def fetch_prices():
+    try:
+        url = "https://api.coingecko.com/api/v3/simple/price"
+        params = {"ids": "bitcoin,ethereum,cardano", "vs_currencies": "usd"}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Fetched price data: {data}")
+                    await save_prices_to_db(data)
+                else:
+                    logger.error(
+                        f"Failed to fetch prices. Status: {response.status}")
+    except Exception as e:
+        logger.exception("Error in fetch_prices")
+
+# Save cryptocurrency prices to the database
 
 
+async def save_prices_to_db(data: Any) -> None:
+    try:
+        if not data:
+            logger.error("No data provided for saving prices.")
+            return
+
+        collection = await get_collection("prices")
+        result = await collection.insert_one({
+            "data": data,
+            "timestamp": datetime.now(timezone.utc)
+        })
+        logger.info(f"Prices saved successfully with id: {result.inserted_id}")
+    except Exception as e:
+        logger.exception("Failed to save prices to DB")
+
+# Fetch social trends data from Reddit and store it in MongoDB
+
+
+# Fetch social trends data from Reddit and store it in MongoDB
 async def fetch_and_store_social_data():
     """
     Fetch social trends data from Reddit and store it in MongoDB.
@@ -131,44 +158,6 @@ async def fetch_and_store_social_data():
 
     except Exception as e:
         logger.error(f"Error fetching or storing social data: {e}")
-
-
-async def fetch_prices():
-    try:
-        url = "https://api.coingecko.com/api/v3/simple/price"
-        params = {"ids": "bitcoin,ethereum,cardano", "vs_currencies": "usd"}
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"Fetched price data: {data}")
-                    await save_prices_to_db(data)
-                else:
-                    logger.error(
-                        f"Failed to fetch prices. Status: {response.status}")
-    except Exception as e:
-        logger.exception("Error in fetch_prices")
-
-# Save cryptocurrency prices to the database
-
-
-async def save_prices_to_db(data: Any) -> None:
-    try:
-        if not data:
-            logger.error("No data provided for saving prices.")
-            return
-
-        collection = await get_collection("prices")
-        result = await collection.insert_one({
-            "data": data,
-            "timestamp": datetime.now(timezone.utc)
-        })
-        logger.info(f"Prices saved successfully with id: {result.inserted_id}")
-    except Exception as e:
-        logger.exception("Failed to save prices to DB")
-
-# Fetch social trends data from Reddit and store it in MongoDB
-
     """
     Fetch social trends data from Reddit and store it in MongoDB.
     """
