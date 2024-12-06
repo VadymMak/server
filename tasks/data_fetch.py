@@ -7,6 +7,8 @@ from db.db_utils import get_collection
 from typing import Any, List
 from dotenv import load_dotenv
 
+from models.social_model import SocialModel
+
 load_dotenv()
 
 # Configure logging
@@ -105,31 +107,45 @@ async def fetch_and_store_social_data():
                                         f"Post missing 'id': {post_data}")
                                     continue
 
-                                # Normalize and clean data
+                                # Map Reddit data to SocialModel fields
                                 social_entry = {
-                                    "id": post_data["id"],
-                                    "title": post_data.get("title", "Untitled"),
-                                    "author": post_data.get("author", "Unknown"),
-                                    "upvotes": post_data.get("ups", 0),
-                                    "num_comments": post_data.get("num_comments", 0),
-                                    "selftext_html": html.unescape(post_data.get("selftext_html", "")),
-                                    "url": post_data.get("url", ""),
-                                    "fetched_at": datetime.now(timezone.utc),
+                                    # Or another logic for symbol
+                                    "symbol": post_data.get("title", "Unknown"),
+                                    "platform": "Reddit",  # Platform is hardcoded here, you could add more logic if needed
+                                    # Using comments as a proxy for followers
+                                    "followers": post_data.get("num_comments", 0),
+                                    # Calculate engagement as an example
+                                    "engagement": post_data.get("ups", 0) / max(post_data.get("num_comments", 1), 1),
+                                    "timestamp": datetime.now(),  # Use current timestamp
+                                    "trend": "Neutral",  # Default trend
+                                    # Using comments as mentions
+                                    "mentions": post_data.get("num_comments", 0),
+                                    "positive_sentiment": 0.5,  # Default sentiment
+                                    "date": datetime.now(),  # Use current timestamp as date
                                 }
+
+                                # Create SocialModel instance and validate
+                                try:
+                                    social_entry_model = SocialModel(
+                                        **social_entry)
+                                except ValueError as e:
+                                    logger.error(
+                                        f"Error validating social entry: {e}")
+                                    continue
 
                                 # Insert or update in MongoDB
                                 result = await collection.update_one(
-                                    {"id": social_entry["id"]},
-                                    {"$set": social_entry},
+                                    {"id": post_data["id"]},
+                                    {"$set": social_entry_model.dict()},
                                     upsert=True
                                 )
 
                                 if result.modified_count == 0:
                                     logger.warning(
-                                        f"Social entry with id {social_entry['id']} was not updated.")
+                                        f"Social entry with id {post_data['id']} was not updated.")
                                 else:
                                     logger.info(
-                                        f"Social entry with id {social_entry['id']} was updated.")
+                                        f"Social entry with id {post_data['id']} was updated.")
 
                             logger.info(
                                 "Social trends data stored successfully.")
@@ -142,8 +158,8 @@ async def fetch_and_store_social_data():
     except Exception as e:
         logger.error(f"Error fetching or storing social data: {e}")
 
-# Fetch and store investor data
 
+# Fetch and store investor data
 
 async def fetch_investors():
     try:
