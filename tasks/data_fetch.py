@@ -21,63 +21,69 @@ REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
 REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
 REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT')
 
-# Define your filtering conditions here
+# Define your filtering conditions
 MIN_PRICE = 0.1
-MAX_PRICE = 10
+MAX_PRICE = 1000
 MIN_MARKET_CAP = 100_000_000
 MIN_VOLUME = 50_000
-SPECIFIC_CURRENCIES = ["bitcoin", "ethereum", "cardano"]
 
-# Fetch cryptocurrency prices and filter based on conditions
+# Function to fetch prices from CoinGecko
 
 
-async def fetch_filtered_prices():
+async def fetch_prices():
     try:
-        url = "https://api.coingecko.com/api/v3/coins/markets"
-        params = {"vs_currency": "usd", "price_change_percentage": "24h"}
+        url = "https://api.coingecko.com/api/v3/simple/price"
+        params = {"ids": "bitcoin,ethereum,cardano", "vs_currencies": "usd",
+                  "include_market_cap": "true", "include_24hr_vol": "true"}
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
+                    logger.info(f"Fetched price data: {data}")
 
-                    # Filter the data based on your conditions
-                    filtered_data = [
-                        coin for coin in data
-                        if (coin["id"] in SPECIFIC_CURRENCIES and
-                            MIN_PRICE <= coin["current_price"] <= MAX_PRICE and
-                            coin["market_cap"] >= MIN_MARKET_CAP and
-                            coin["total_volume"] >= MIN_VOLUME)
-                    ]
-                    logger.info(f"Filtered coins: {filtered_data}")
-
-                    # Save the filtered data to the database
+                    # Filter data based on conditions
+                    filtered_data = filter_prices(data)
                     if filtered_data:
                         await save_prices_to_db(filtered_data)
-
+                    else:
+                        logger.info(
+                            "No data after filtering based on conditions.")
                 else:
                     logger.error(
                         f"Failed to fetch prices. Status: {response.status}")
     except Exception as e:
-        logger.exception("Error in fetch_filtered_prices")
+        logger.exception("Error in fetch_prices")
 
-# Save the filtered cryptocurrency prices to the database
+# Function to filter fetched prices based on market cap, volume, and price range
 
 
-async def save_prices_to_db(filtered_data: List[dict]) -> None:
+def filter_prices(data: Dict) -> Dict:
+    filtered = {}
+    for coin_id, coin_data in data.items():
+        if (MIN_PRICE <= coin_data["usd"] <= MAX_PRICE and
+            coin_data.get("usd_market_cap", 0) >= MIN_MARKET_CAP and
+                coin_data.get("usd_24h_vol", 0) >= MIN_VOLUME):
+            filtered[coin_id] = coin_data
+    return filtered
+
+# Save filtered cryptocurrency prices to the database
+
+
+async def save_prices_to_db(data: Any) -> None:
     try:
-        if not filtered_data:
-            logger.error("No filtered data to save.")
+        if not data:
+            logger.error("No data provided for saving prices.")
             return
 
         collection = await get_collection("prices")
         result = await collection.insert_one({
-            "data": filtered_data,
+            "data": data,
             "timestamp": datetime.now(timezone.utc)
         })
         logger.info(f"Prices saved successfully with id: {result.inserted_id}")
     except Exception as e:
-        logger.exception("Failed to save filtered prices to DB")
+        logger.exception("Failed to save prices to DB")
 
 # Fetch social trends data from Reddit and store it in MongoDB
 
