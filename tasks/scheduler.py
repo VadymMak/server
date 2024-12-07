@@ -54,7 +54,7 @@ def configure_scheduler():
     scheduler.add_job(filter_currencies_based_on_params,
                       'interval', hours=1, id='filter_currencies')
     scheduler.add_job(save_prices_to_db_task, 'interval',
-                      hours=1, id='save_prices_to_db')
+                      minutes=10, id='save_prices_to_db')
     scheduler.add_job(store_investor_data_task, 'interval',
                       minutes=10, id='store_investor_data')
     scheduler.add_job(store_filtered_currencies_task, 'interval',
