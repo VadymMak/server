@@ -4,7 +4,8 @@ import logging
 import os
 import html
 from db.db_utils import get_collection
-from typing import Any, List
+from pymongo.collection import Collection
+from typing import Any, List, Dict
 from dotenv import load_dotenv
 
 from models.social_model import SocialModel
