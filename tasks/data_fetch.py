@@ -217,10 +217,22 @@ async def store_investor_data(data):
 # Filter cryptocurrencies based on parameters
 
 
-async def filter_currencies_based_on_params() -> List[dict]:
+async def filter_currencies_based_on_params() -> List[Dict]:
+    """
+    Fetch and filter cryptocurrencies based on specified parameters.
+    """
     try:
         url = "https://api.coingecko.com/api/v3/coins/markets"
-        params = {"vs_currency": "usd", "price_change_percentage": "24h"}
+        params = {
+            "vs_currency": "usd",
+            "price_change_percentage": "24h",  # Include price change for analytics
+            "order": "market_cap_desc",       # Sort by market cap (optional)
+            "per_page": 250,                 # Max number of results per page
+            # Pagination start (extend if needed)
+            "page": 1
+        }
+
+        # Filter criteria
         min_price, max_price = 0.1, 10
         min_market_cap, min_volume = 100_000_000, 50_000
 
@@ -228,11 +240,27 @@ async def filter_currencies_based_on_params() -> List[dict]:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
+
+                    # Filter cryptocurrencies based on criteria
                     filtered_coins = [
-                        coin for coin in data if min_price <= coin["current_price"] <= max_price and
-                        coin["market_cap"] >= min_market_cap and coin["total_volume"] >= min_volume
+                        {
+                            "id": coin["id"],
+                            "symbol": coin["symbol"],
+                            "name": coin["name"],
+                            "current_price": coin["current_price"],
+                            "market_cap": coin["market_cap"],
+                            "total_volume": coin["total_volume"],
+                            "price_change_percentage_24h": coin.get("price_change_percentage_24h", 0),
+                            "timestamp": datetime.now(timezone.utc)
+                        }
+                        for coin in data
+                        if min_price <= coin["current_price"] <= max_price
+                        and coin["market_cap"] >= min_market_cap
+                        and coin["total_volume"] >= min_volume
                     ]
-                    logger.info(f"Filtered coins: {filtered_coins}")
+
+                    logger.info(
+                        f"Filtered coins: {len(filtered_coins)} coins meet the criteria.")
                     return filtered_coins
                 else:
                     logger.error(
@@ -241,22 +269,31 @@ async def filter_currencies_based_on_params() -> List[dict]:
         logger.exception("Error in filter_currencies_based_on_params")
     return []
 
-# Store filtered cryptocurrencies in MongoDB
 
-
-async def store_filtered_currencies(currencies: List[dict]):
+async def store_filtered_currencies(currencies: List[Dict], collection: Collection):
+    """
+    Store filtered cryptocurrencies in MongoDB.
+    """
     try:
         if not currencies:
             logger.warning("No filtered currencies provided.")
             return
 
-        collection = await get_collection("filtered_currencies")
-        for currency in currencies:
-            await collection.update_one(
-                {"id": currency["id"]},
-                {"$set": currency},
-                upsert=True
-            )
-        logger.info("Filtered currencies stored successfully.")
+        # Bulk upsert operation for efficient updates
+        operations = [
+            {
+                "updateOne": {
+                    "filter": {"id": currency["id"]},
+                    "update": {"$set": currency},
+                    "upsert": True
+                }
+            }
+            for currency in currencies
+        ]
+
+        if operations:
+            result = await collection.bulk_write(operations)
+            logger.info(f"Filtered currencies stored successfully. "
+                        f"Matched: {result.matched_count}, Upserted: {result.upserted_count}.")
     except Exception as e:
         logger.exception("Failed to store filtered currencies")
