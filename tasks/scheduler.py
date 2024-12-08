@@ -34,7 +34,8 @@ async def store_investor_data_task():
 
 
 async def store_filtered_currencies_task():
-    filtered_data = await filter_currencies_based_on_params()
+    # Add min_price and max_price
+    filtered_data = await filter_currencies_based_on_params(min_price=0.1, max_price=10)
     await store_filtered_currencies(filtered_data)
 
 # Schedule tasks
@@ -46,13 +47,14 @@ def configure_scheduler():
     """
     logger.debug("Configuring scheduler jobs...")
 
+    # Add the min_price and max_price arguments to the filter_currencies job
     scheduler.add_job(fetch_prices, 'interval', minutes=10, id='fetch_prices')
     scheduler.add_job(fetch_and_store_social_data, 'interval',
                       minutes=10, id='fetch_social_data')
     scheduler.add_job(fetch_investors, 'interval',
                       minutes=10, id='fetch_investors')
     scheduler.add_job(filter_currencies_based_on_params,
-                      'interval', hours=1, id='filter_currencies')
+                      'interval', hours=1, id='filter_currencies', args=[0.1, 10])  # Pass min_price, max_price here
     scheduler.add_job(save_prices_to_db_task, 'interval',
                       minutes=10, id='save_prices_to_db')
     scheduler.add_job(store_investor_data_task, 'interval',
