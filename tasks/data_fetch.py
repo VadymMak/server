@@ -2,7 +2,6 @@ import aiohttp
 from datetime import datetime, timezone
 import logging
 import os
-import html
 from db.db_utils import get_collection
 from pymongo.collection import Collection
 from typing import Any, List, Dict
@@ -21,16 +20,16 @@ REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
 REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
 REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT')
 
-# Define your filtering conditions
-MIN_PRICE = 0.1
-MAX_PRICE = 1000
+# Default filter values
+DEFAULT_MIN_PRICE = 0
+DEFAULT_MAX_PRICE = 0.1  # Set default maximum price to 0.1
 MIN_MARKET_CAP = 100_000_000
 MIN_VOLUME = 50_000
 
 # Function to fetch prices from CoinGecko
 
 
-async def fetch_prices():
+async def fetch_prices(min_price: float = DEFAULT_MIN_PRICE, max_price: float = DEFAULT_MAX_PRICE):
     try:
         url = "https://api.coingecko.com/api/v3/simple/price"
         params = {"ids": "bitcoin,ethereum,cardano", "vs_currencies": "usd",
@@ -43,7 +42,7 @@ async def fetch_prices():
                     logger.info(f"Fetched price data: {data}")
 
                     # Filter data based on conditions
-                    filtered_data = filter_prices(data)
+                    filtered_data = filter_prices(data, min_price, max_price)
                     if filtered_data:
                         await save_prices_to_db(filtered_data)
                     else:
@@ -58,10 +57,10 @@ async def fetch_prices():
 # Function to filter fetched prices based on market cap, volume, and price range
 
 
-def filter_prices(data: Dict) -> Dict:
+def filter_prices(data: Dict, min_price: float, max_price: float) -> Dict:
     filtered = {}
     for coin_id, coin_data in data.items():
-        if (MIN_PRICE <= coin_data["usd"] <= MAX_PRICE and
+        if (min_price <= coin_data["usd"] <= max_price and
             coin_data.get("usd_market_cap", 0) >= MIN_MARKET_CAP and
                 coin_data.get("usd_24h_vol", 0) >= MIN_VOLUME):
             filtered[coin_id] = coin_data
@@ -85,7 +84,7 @@ async def save_prices_to_db(data: Any) -> None:
     except Exception as e:
         logger.exception("Failed to save prices to DB")
 
-# Fetch social trends data from Reddit and store it in MongoDB
+# Function to fetch social trends data from Reddit and store it in MongoDB
 
 
 async def fetch_and_store_social_data():
@@ -137,19 +136,15 @@ async def fetch_and_store_social_data():
 
                                 # Map Reddit data to SocialModel fields
                                 social_entry = {
-                                    # Or another logic for symbol
                                     "symbol": post_data.get("title", "Unknown"),
-                                    "platform": "Reddit",  # Platform is hardcoded here, you could add more logic if needed
-                                    # Using comments as a proxy for followers
+                                    "platform": "Reddit",
                                     "followers": post_data.get("num_comments", 0),
-                                    # Calculate engagement as an example
                                     "engagement": post_data.get("ups", 0) / max(post_data.get("num_comments", 1), 1),
-                                    "timestamp": datetime.now(),  # Use current timestamp
-                                    "trend": "Neutral",  # Default trend
-                                    # Using comments as mentions
+                                    "timestamp": datetime.now(),
+                                    "trend": "Neutral",
                                     "mentions": post_data.get("num_comments", 0),
-                                    "positive_sentiment": 0.5,  # Default sentiment
-                                    "date": datetime.now(),  # Use current timestamp as date
+                                    "positive_sentiment": 0.5,
+                                    "date": datetime.now(),
                                 }
 
                                 # Create SocialModel instance and validate
@@ -186,8 +181,8 @@ async def fetch_and_store_social_data():
     except Exception as e:
         logger.error(f"Error fetching or storing social data: {e}")
 
-
 # Fetch and store investor data
+
 
 async def fetch_investors():
     try:
@@ -245,7 +240,7 @@ async def store_investor_data(data):
 # Filter cryptocurrencies based on parameters
 
 
-async def filter_currencies_based_on_params() -> List[Dict]:
+async def filter_currencies_based_on_params(min_price: float, max_price: float) -> List[Dict]:
     """
     Fetch and filter cryptocurrencies based on specified parameters.
     """
@@ -253,17 +248,13 @@ async def filter_currencies_based_on_params() -> List[Dict]:
         url = "https://api.coingecko.com/api/v3/coins/markets"
         params = {
             "vs_currency": "usd",
-            "price_change_percentage": "24h",  # Include price change for analytics
-            "order": "market_cap_desc",       # Sort by market cap (optional)
-            "per_page": 250,                 # Max number of results per page
-            # Pagination start (extend if needed)
+            "price_change_percentage": "24h",
+            "order": "market_cap_desc",
+            "per_page": 250,
             "page": 1
         }
 
-        # Filter criteria
-        min_price, max_price = 0.1, 10
-        min_market_cap, min_volume = 100_000_000, 50_000
-
+        # Fetching the coins data
         async with aiohttp.ClientSession() as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
@@ -283,8 +274,8 @@ async def filter_currencies_based_on_params() -> List[Dict]:
                         }
                         for coin in data
                         if min_price <= coin["current_price"] <= max_price
-                        and coin["market_cap"] >= min_market_cap
-                        and coin["total_volume"] >= min_volume
+                        and coin["market_cap"] >= MIN_MARKET_CAP
+                        and coin["total_volume"] >= MIN_VOLUME
                     ]
 
                     logger.info(
@@ -296,6 +287,8 @@ async def filter_currencies_based_on_params() -> List[Dict]:
     except Exception as e:
         logger.exception("Error in filter_currencies_based_on_params")
     return []
+
+# Store filtered cryptocurrencies in MongoDB
 
 
 async def store_filtered_currencies(currencies: List[Dict], collection: Collection):
