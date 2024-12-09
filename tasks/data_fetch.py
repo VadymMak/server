@@ -6,13 +6,13 @@ from db.db_utils import get_collection
 from pymongo.collection import Collection
 from typing import Any, List, Dict
 from dotenv import load_dotenv
-
 from models.social_model import SocialModel
 
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+# Configure logging with timestamp
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Reddit credentials from environment variables
@@ -22,14 +22,13 @@ REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT')
 
 # Default filter values
 DEFAULT_MIN_PRICE = 0
-DEFAULT_MAX_PRICE = 1  # Set default maximum price to 0.1
+DEFAULT_MAX_PRICE = 1  # Set default maximum price to 1
 MIN_MARKET_CAP = 100_000_000
 MIN_VOLUME = 50_000
 
-# Function to fetch prices from CoinGecko
-
-
 # Function to fetch cryptocurrency prices from CoinGecko API
+
+
 async def fetch_prices(min_price: float = DEFAULT_MIN_PRICE, max_price: float = DEFAULT_MAX_PRICE):
     try:
         url = "https://api.coingecko.com/api/v3/simple/price"
@@ -107,58 +106,11 @@ async def store_prices_to_db(data: Any) -> None:
     except Exception as e:
         logger.exception("Failed to save prices to DB")
 
-# Function to store filtered cryptocurrencies in MongoDB
-
-
-async def store_filtered_currencies(currencies: List[Dict], collection: Collection):
-    try:
-        if not currencies:
-            logger.warning("No filtered currencies provided.")
-            return
-
-        # Get MongoDB collection for filtered currencies
-        if not collection:
-            logger.error(
-                "Collection for storing filtered currencies not found.")
-            return
-
-        # Bulk upsert operation for efficient updates
-        operations = [
-            {
-                "updateOne": {
-                    "filter": {"id": currency["id"]},
-                    "update": {"$set": currency},
-                    "upsert": True
-                }
-            }
-            for currency in currencies
-        ]
-
-        if operations:
-            result = await collection.bulk_write(operations)
-            logger.info(f"Filtered currencies stored successfully. "
-                        f"Matched: {result.matched_count}, Upserted: {result.upserted_count}.")
-        else:
-            logger.info(
-                "No operations to perform for storing filtered currencies.")
-    except Exception as e:
-        logger.exception("Failed to store filtered currencies")
-
-# Function to get MongoDB collection (placeholder for actual implementation)
-
-
-async def get_collection(collection_name: str):
-    # Implement the connection to your MongoDB here
-    # For example: return your_mongo_client.database[collection_name]
-    pass
-
-
-# Function to fetch social trends data from Reddit and store it in MongoDB
+# Fetch and store social data from Reddit
 
 
 async def fetch_and_store_social_data():
     try:
-        # Get access token from Reddit using client credentials
         auth = aiohttp.BasicAuth(REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET)
         token_url = "https://www.reddit.com/api/v1/access_token"
         headers = {'User-Agent': REDDIT_USER_AGENT}
@@ -250,140 +202,9 @@ async def fetch_and_store_social_data():
     except Exception as e:
         logger.error(f"Error fetching or storing social data: {e}")
 
-# Fetch and store investor data
+# Placeholder MongoDB collection fetch function
 
 
-async def fetch_investors():
-    try:
-        # Placeholder API URL
-        url = "https://api.some-crypto-investor-api.com/investors"
-        params = {"crypto": "bitcoin,ethereum,cardano"}
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"Fetched investor data: {data}")
-                    await store_investor_data(data)
-                else:
-                    logger.error(
-                        f"Failed to fetch investor data. Status: {response.status}")
-    except Exception as e:
-        logger.error(f"Error in fetch_investors: {e}")
-
-# Store investor data to MongoDB
-
-
-async def store_investor_data(data):
-    try:
-        investors = data.get("investors", [])
-
-        if not isinstance(investors, list):
-            logger.warning("Investors data is not a list.")
-            return
-
-        collection = await get_collection("investors")
-
-        for investor in investors:
-            if "name" not in investor:
-                logger.warning(f"Missing 'name' field in investor: {investor}")
-                continue
-
-            investor_entry = {
-                "name": investor["name"],
-                "cryptos_supported": investor.get("cryptos_supported", []),
-                "amount_invested": investor.get("amount_invested", "unknown"),
-                "fetched_at": datetime.now(timezone.utc),
-            }
-
-            await collection.update_one(
-                {"name": investor_entry["name"]},
-                {"$set": investor_entry},
-                upsert=True
-            )
-
-        logger.info("Investor data stored successfully.")
-    except Exception as e:
-        logger.error(f"Failed to store investor data: {e}")
-
-# Filter cryptocurrencies based on parameters
-
-
-async def filter_currencies_based_on_params(min_price: float, max_price: float) -> List[Dict]:
-    """
-    Fetch and filter cryptocurrencies based on specified parameters.
-    """
-    try:
-        url = "https://api.coingecko.com/api/v3/coins/markets"
-        params = {
-            "vs_currency": "usd",
-            "price_change_percentage": "24h",
-            "order": "market_cap_desc",
-            "per_page": 250,
-            "page": 1
-        }
-
-        # Fetching the coins data
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-
-                    # Filter cryptocurrencies based on criteria
-                    filtered_coins = [
-                        {
-                            "id": coin["id"],
-                            "symbol": coin["symbol"],
-                            "name": coin["name"],
-                            "current_price": coin["current_price"],
-                            "market_cap": coin["market_cap"],
-                            "total_volume": coin["total_volume"],
-                            "price_change_percentage_24h": coin.get("price_change_percentage_24h", 0),
-                            "timestamp": datetime.now(timezone.utc)
-                        }
-                        for coin in data
-                        if min_price <= coin["current_price"] <= max_price
-                        and coin["market_cap"] >= MIN_MARKET_CAP
-                        and coin["total_volume"] >= MIN_VOLUME
-                    ]
-
-                    logger.info(
-                        f"Filtered coins: {len(filtered_coins)} coins meet the criteria.")
-                    return filtered_coins
-                else:
-                    logger.error(
-                        f"Failed to fetch currencies. Status: {response.status}")
-    except Exception as e:
-        logger.exception("Error in filter_currencies_based_on_params")
-    return []
-
-# Store filtered cryptocurrencies in MongoDB
-
-
-async def store_filtered_currencies(currencies: List[Dict], collection: Collection):
-    """
-    Store filtered cryptocurrencies in MongoDB.
-    """
-    try:
-        if not currencies:
-            logger.warning("No filtered currencies provided.")
-            return
-
-        # Bulk upsert operation for efficient updates
-        operations = [
-            {
-                "updateOne": {
-                    "filter": {"id": currency["id"]},
-                    "update": {"$set": currency},
-                    "upsert": True
-                }
-            }
-            for currency in currencies
-        ]
-
-        if operations:
-            result = await collection.bulk_write(operations)
-            logger.info(f"Filtered currencies stored successfully. "
-                        f"Matched: {result.matched_count}, Upserted: {result.upserted_count}.")
-    except Exception as e:
-        logger.exception("Failed to store filtered currencies")
+async def get_collection(collection_name: str):
+    # Connect to MongoDB and return collection object
+    pass
