@@ -60,7 +60,7 @@ def configure_scheduler():
     scheduler.add_job(store_investor_data_task, 'interval',
                       minutes=10, id='store_investor_data')
     scheduler.add_job(store_filtered_currencies_task, 'interval',
-                      hours=1, id='store_filtered_currencies')
+                      minutes=10, id='store_filtered_currencies')
 
     logger.debug("Scheduler jobs configured successfully.")
 
