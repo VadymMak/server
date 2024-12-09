@@ -76,11 +76,16 @@ async def save_prices_to_db(data: Any) -> None:
             return
 
         collection = await get_collection("prices")
-        result = await collection.insert_one({
-            "data": data,
-            "timestamp": datetime.now(timezone.utc)
-        })
-        logger.info(f"Prices saved successfully with id: {result.inserted_id}")
+        if collection:
+            logger.debug(f"Using collection: {collection.name}")
+            result = await collection.insert_one({
+                "data": data,
+                "timestamp": datetime.now(timezone.utc)
+            })
+            logger.info(
+                f"Prices saved successfully with id: {result.inserted_id}")
+        else:
+            logger.error("Failed to get collection.")
     except Exception as e:
         logger.exception("Failed to save prices to DB")
 
@@ -274,47 +279,15 @@ async def filter_currencies_based_on_params(min_price: float, max_price: float) 
                         }
                         for coin in data
                         if min_price <= coin["current_price"] <= max_price
-                        and coin["market_cap"] >= MIN_MARKET_CAP
-                        and coin["total_volume"] >= MIN_VOLUME
                     ]
 
                     logger.info(
-                        f"Filtered coins: {len(filtered_coins)} coins meet the criteria.")
+                        f"Filtered {len(filtered_coins)} cryptocurrencies based on the price range.")
                     return filtered_coins
                 else:
                     logger.error(
                         f"Failed to fetch currencies. Status: {response.status}")
+                    return []
     except Exception as e:
-        logger.exception("Error in filter_currencies_based_on_params")
-    return []
-
-# Store filtered cryptocurrencies in MongoDB
-
-
-async def store_filtered_currencies(currencies: List[Dict], collection: Collection):
-    """
-    Store filtered cryptocurrencies in MongoDB.
-    """
-    try:
-        if not currencies:
-            logger.warning("No filtered currencies provided.")
-            return
-
-        # Bulk upsert operation for efficient updates
-        operations = [
-            {
-                "updateOne": {
-                    "filter": {"id": currency["id"]},
-                    "update": {"$set": currency},
-                    "upsert": True
-                }
-            }
-            for currency in currencies
-        ]
-
-        if operations:
-            result = await collection.bulk_write(operations)
-            logger.info(f"Filtered currencies stored successfully. "
-                        f"Matched: {result.matched_count}, Upserted: {result.upserted_count}.")
-    except Exception as e:
-        logger.exception("Failed to store filtered currencies")
+        logger.error(f"Error filtering cryptocurrencies: {e}")
+        return []

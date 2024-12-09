@@ -435,3 +435,18 @@ def init_scheduler():
 if __name__ == "__main__":
     # Start the scheduler in a standalone way
     asyncio.run(start_scheduler())
+
+************
+
+List databases:
+show dbs
+
+Switch to a different database:
+use <database-name>
+
+List collections in the current database:
+show collections
+
+Query a collection:
+db.<collection-name>.find()
+**************

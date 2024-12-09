@@ -54,7 +54,7 @@ def configure_scheduler():
     scheduler.add_job(fetch_investors, 'interval',
                       minutes=10, id='fetch_investors')
     scheduler.add_job(filter_currencies_based_on_params,
-                      'interval',  minutes=10, id='filter_currencies', args=[0, 0.1])  # Pass min_price, max_price here
+                      'interval',  minutes=10, id='filter_currencies', args=[0, 1])  # Pass min_price, max_price here
     scheduler.add_job(save_prices_to_db_task, 'interval',
                       minutes=10, id='save_prices_to_db')
     scheduler.add_job(store_investor_data_task, 'interval',
