@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import logging
 import os
 from db.db_utils import get_collection
+from db.database import get_database  # Import the database connection function
 from pymongo.collection import Collection
 from typing import Any, List, Dict
 from dotenv import load_dotenv
@@ -59,7 +60,7 @@ async def fetch_prices(min_price: float = DEFAULT_MIN_PRICE, max_price: float = 
 
 async def get_collection(collection_name: str):
     try:
-        db = await get_db()  # Assuming get_db() is the function that retrieves the DB
+        db = await get_database()  # Assuming get_db() is the function that retrieves the DB
         collection = db[collection_name]
         if not collection:
             logger.error(f"Collection '{collection_name}' not found.")
