@@ -3,12 +3,21 @@ from datetime import datetime, timezone
 import logging
 import os
 from db.db_utils import get_collection
-from db.database import get_database  # Import the database connection function
 from pymongo.collection import Collection
 from typing import Any, List, Dict
 from dotenv import load_dotenv
 
 from models.social_model import SocialModel
+from motor.motor_asyncio import AsyncIOMotorClient
+
+MONGO_URI = "your_mongo_uri"
+MONGO_DB_NAME = "your_database_name"
+
+client = AsyncIOMotorClient(MONGO_URI)
+
+
+async def get_db():
+    return client[MONGO_DB_NAME]
 
 load_dotenv()
 
@@ -60,7 +69,7 @@ async def fetch_prices(min_price: float = DEFAULT_MIN_PRICE, max_price: float = 
 
 async def get_collection(collection_name: str):
     try:
-        db = await get_database()  # Assuming get_db() is the function that retrieves the DB
+        db = await get_db()  # Assuming get_db() is the function that retrieves the DB
         collection = db[collection_name]
         if not collection:
             logger.error(f"Collection '{collection_name}' not found.")
@@ -187,18 +196,11 @@ async def fetch_and_store_social_data():
                                     continue
 
                                 # Insert or update in MongoDB
-                                logger.info(
-                                    f"Inserting/Updating: {social_entry_model.model_dump()}")
                                 result = await collection.update_one(
-                                    {"symbol": social_entry["symbol"],
-                                        "platform": "Reddit"},
-                                    # Use model_dump here
+                                    {"id": post_data["id"]},
                                     {"$set": social_entry_model.model_dump()},
                                     upsert=True
                                 )
-
-                                logger.info(
-                                    f"Update result: matched={result.matched_count}, modified={result.modified_count}")
 
                                 if result.modified_count == 0:
                                     logger.warning(
