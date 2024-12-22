@@ -187,11 +187,18 @@ async def fetch_and_store_social_data():
                                     continue
 
                                 # Insert or update in MongoDB
+                                logger.info(
+                                    f"Inserting/Updating: {social_entry_model.model_dump()}")
                                 result = await collection.update_one(
-                                    {"id": post_data["id"]},
-                                    {"$set": social_entry_model.dict()},
+                                    {"symbol": social_entry["symbol"],
+                                        "platform": "Reddit"},
+                                    # Use model_dump here
+                                    {"$set": social_entry_model.model_dump()},
                                     upsert=True
                                 )
+
+                                logger.info(
+                                    f"Update result: matched={result.matched_count}, modified={result.modified_count}")
 
                                 if result.modified_count == 0:
                                     logger.warning(
